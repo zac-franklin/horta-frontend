@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+		<title>Sentiment</title>
+        <link href="/css/roonr.css" rel="stylesheet">
+		<link href="/css/comic.css" rel="stylesheet">
+	    <link href="/style.css" rel="stylesheet">
+		<link href="static/style.css" rel="stylesheet">
+	</head>
+	<body class="noselect" style="padding:7px;">
+        <div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
+	        <div class="comic" text="Sentiment">
+				Sentiment
+			</div>
+		</div>
+
+		<div id="app" class="center" style="visibility:hidden;">
+			
+		</div>
+
+		<script type="module">
+			import init from './pkg/sentiment-frontend.js';
+
+			async function run () {
+			    await init();
+			}
+
+			run();
+
+		</script>
+	</body>
+</html>

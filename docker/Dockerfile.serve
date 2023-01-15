@@ -1,0 +1,5 @@
+FROM nginx
+
+COPY static /usr/share/nginx/html/sentiment/static
+COPY index.html /usr/share/nginx/html/sentiment/  
+COPY pkg /usr/share/nginx/html/sentiment/pkg
