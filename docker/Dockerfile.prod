@@ -10,10 +10,10 @@ RUN apt-get -y update && apt-get -y install curl build-essential libssl-dev pkg-
     rustup target add wasm32-unknown-unknown && \
     cargo install wasm-bindgen-cli --version 0.2.83 && \
     cargo build --release --target wasm32-unknown-unknown && \
-    wasm-bindgen --out-name sentiment --out-dir pkg --target web target/wasm32-unknown-unknown/release/sentiment_frontend.wasm
+    wasm-bindgen --out-name horta --out-dir pkg --target web target/wasm32-unknown-unknown/release/horta_frontend.wasm
     
 FROM nginx
 
-COPY static /usr/share/nginx/html/sentiment/static
-COPY index.html /usr/share/nginx/html/sentiment/  
-COPY --from=builder /build/pkg /usr/share/nginx/html/sentiment/pkg
+COPY static /usr/share/nginx/html/horta/static
+COPY index.html /usr/share/nginx/html/horta/  
+COPY --from=builder /build/pkg /usr/share/nginx/html/horta/pkg
