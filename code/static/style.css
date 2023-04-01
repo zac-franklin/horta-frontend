@@ -1,0 +1,89 @@
+.card {
+  flex: 0 0 auto;
+  font-size: calc(16px + .6vw);;
+  display: flex;
+  border-radius: 5px;
+  border: 2px solid #FD7014;
+  color: #FD7014;
+  padding: 4px;
+  margin-left: 3px;
+  margin-right: 3px;
+  justify-content:center;
+  text-align:center;
+  align-items:center;
+  max-width: 100px;
+  width: 9%;
+}
+
+.next-card {
+  background-color: #FD7014;
+  color: #000000;
+}
+
+.hand {
+    display: flex;
+    justify-content:center;
+    margin: 10px auto;
+    width: 100%;
+    max-width: 750px;
+    aspect-ratio: 14/3;
+  }
+
+.play-div {
+    display: flex;
+    text-align:center;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 210px;
+}
+
+.start-game-container {
+  text-align:center;
+  align-items:center;
+  justify-content:center;
+  margin: 0 auto;
+  width: 100%;
+  max-width:750px;
+  margin-top: 100px;
+  display: flex;
+}
+
+.play-card-container {
+  display: flex;
+  text-align:center;
+  align-items:center;
+  justify-content:center;
+  margin: 0 auto;
+  width: 100%;
+  max-width:750px;
+  margin-top: 100px;
+}
+
+.button {
+  font-size: calc(24px + .6vw);;
+  flex:0 0 auto;
+  display:flex;
+  width:200px;
+  padding: 5px;
+  text-align:center;
+  align-items:center;
+  justify-content:center;
+  border: 2px solid #FD7014;
+  background-color: transparent;
+  color: #FD7014;
+}
+
+.button:hover {
+  background-color: #FD7014;
+  color: #000000; 
+}
+
+.button:active {
+  background-color: #FD7014;
+  color: #000000;
+}
+
+.blur {
+  filter: blur(8px);
+  -webkit-filter: blur(8px);
+}

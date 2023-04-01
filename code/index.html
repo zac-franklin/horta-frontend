@@ -16,15 +16,122 @@
 			</div>
 		</div>
 
-		<div id="app" class="center" style="visibility:hidden;">
+		<div id="app" class="center">
+			<div id="intro">
+				<p style="margin-top:7px;">
+					<b>Goal of the game:</b> Play dealt cards in correct numerical order.
+				</p>
+
+				<p style="font-size:12px;margin-top:7px;margin-bottom:14px;">
+					<b>Catch:</b>Including the Computer's cards.
+				</p>
+			</div>
+
+			<!--TODO: Button for readying-->
+			<div id = "game">
+
+				<div id="computer-hand" class="hand">
+					<div id="card-c0" class="card">
+					</div>
+
+					<div id="card-c1" class="card">
+					</div>
+
+					<div id="card-c2" class="card">
+					</div>
+
+					<div id="card-c3" class="card">
+					</div>
+
+					<div id="card-c4" class="card">
+					</div>
+
+					<div id="card-c5" class="card">
+					</div>
+
+					<div id="card-c6" class="card">
+					</div>
+				</div>
+
+				<div class="hand">
+					<div id="played-card" class="card">
+					</div>
+				</div>
+
+				<div id="player-hand" class="hand">
+					<div id="card-p0" class="card next-card">
+					</div>
+
+					<div id="card-p1" class="card">
+					</div>
+
+					<div id="card-p2" class="card">
+					</div>
+
+					<div id="card-p3" class="card">
+					</div>
+
+					<div id="card-p4" class="card">
+					</div>
+
+					<div id="card-p5" class="card">
+					</div>
+
+					<div id="card-p6" class="card">
+					</div>
+				</div>
+
+				<div id="play-card-container" class="play-card-container" style="display:none;">
+					<button id="play-card" class="button">PLAY CARD</button>
+				</div>
+
+				<div id="start-game-container" class="start-game-container" style="display:flex;">
+					<button id="start-game" class="button">START GAME</button>
+				</div>
+			</div>
+
+			<div id="lost" style="display:none">
+				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
+					<div class="comic" text="Shucks!">
+						Shucks!
+					</div>
+				</div>
+
+				<p style="margin-top:10px;">
+					Here is a blurred picure of Pat, Do better and you can see the real thing!
+				</p>
+				<img class="blur" style="margin-top:10px;width:100%" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+				<div class="start-game-container" style="display:flex;">
+					<button id="start-game" class="button" onclick="reload_page()">RETRY</button>
+				</div>
+			</div>
+
+			<div id="won" style="display:none">
+				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
+					<div class="comic" text="Nice!">
+						Nice!
+					</div>
+				</div>
+
+				<p style="margin-top:10px;">
+					Here is a picture of my dog, Patrick, as a reward. 
+				</p>
+				<img style="margin-top:10px;width:100%" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+			</div>
 			
 		</div>
+
+		<script>
+			function reload_page() {
+				location.reload();
+			}
+		</script>
 
 		<script type="module">
 			import init from './pkg/sentiment-frontend.js';
 
 			async function run () {
-			    await init();
+			    await init(); //Sets up basica game and rules. //Might be cool to have a shuffling card animation. Or just loading until play from the rules and has cards. Or no rules or crads until have game. I like the third to start I think. //So this just sets up loading screen.
 			}
 
 			run();
