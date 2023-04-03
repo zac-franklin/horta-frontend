@@ -1,67 +1,11 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Element, ErrorEvent, HtmlElement, MessageEvent, RequestInit, Request, RequestMode, Response, WebSocket};
+use web_sys::{Document, ErrorEvent, HtmlElement, MessageEvent, RequestInit, Request, RequestMode, Response, WebSocket};
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::{JsFuture, spawn_local};
+use wasm_bindgen_futures::JsFuture;
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-
-//TODO: lol, better name for this.
-pub enum Who {
-    Computer,
-    Person
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Event<'a> {
-    topic: &'a str,
-    message: &'a str,
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Card {
-    number: u8,
-}
-
-//TODO: implement setup of hand and card on screen. Probably dotted line area to show where cards were once played and dotted line area in middle of screen where cards will be played when none have been yet. 
-//   and cards with question marks for computers hand. 
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Hand {
-    cards: Vec<Card>,
-    last_index_played: usize, //TODO: I don't like this. Try a different way later=
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Guesses {
-    cards: Vec<Card>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Player {
-    hand: Hand,
-    guesses: Guesses,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Game {
-    level: u8,
-    player: Player,
-    computer: Player
-}
-
-pub struct FrontEndGame {
-    uuid: u128,
-    id: u64,
-    game: Game,
-    ws: Option<WebSocket>,
-}
-
-unsafe impl Send for FrontEndGame {}
-unsafe impl Sync for FrontEndGame {}
-
-//TODO: implement win logic.
+use std::str;
 
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
@@ -77,6 +21,135 @@ lazy_static! {
     static ref GAME: Mutex<Option<FrontEndGame>> = Mutex::new(None);
 }
 
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone)]
+pub enum Player {
+    Computer,
+    Person
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone)]
+pub struct Card {
+    player: Player,
+    number: u8,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Game {
+    level: u8,
+    cards: Vec<Card>,
+    cards_played: Vec<Card>,
+}
+
+#[derive(Eq, PartialEq)]
+pub enum GameState {
+    Playing,
+    Won,
+    Lost,
+}
+
+pub struct FrontEndGame {
+    uuid: u128,
+    instance: u64,
+    game: Game,
+    ws: Option<WebSocket>,
+    state: GameState
+}
+
+impl FrontEndGame {
+    pub fn card_played(&mut self, card: Card, document: &Document) {
+        if self.game.cards.contains(&card) {
+            let number = card.number;
+
+            //perform checks
+            self.game.cards_played.push(card);
+            if self.game.cards_played == self.game.cards {
+                self.state = GameState::Won;
+            } else {
+                //TODO: Get rid of copy here.
+                if self.game.cards.iter().filter(|x| !self.game.cards_played.contains(&x)).find(|&x| x.number < number) != None {
+                    self.state = GameState::Lost;
+                }
+            }
+
+            //make updates
+            match self.state {
+                GameState::Lost => {
+                    self.close_ws();
+                    change_screen(document, "lost");
+                },
+                GameState::Won => {
+                    self.close_ws();
+                    change_screen(document, "won");
+                },
+                GameState::Playing => {
+                    println!("TODO!");
+                }
+            }
+        }
+    }
+
+    pub fn next_card(&self, player: Player) -> Option<&Card> {
+        self.game.cards
+            .iter()
+            .filter(|&x| !self.game.cards_played.contains(&x))
+            .find(|&x| x.player == player)
+    }
+
+    pub fn next_card_idx(&self, card: &Card, player: Player) -> Option<usize> {
+        self.game.cards
+            .iter()
+            .filter(|&x| x.player == player)
+            .position(|x| x == card)
+    }
+
+    pub fn send_card(&self, card: Card) {
+        if let Some(ws) = &self.ws {
+            let encoded: Vec<u8> = bincode::serialize(&card).unwrap();
+
+            match ws.send_with_u8_array(&encoded[..]) {
+                Ok(_) => console_log!("binary message successfully sent"),
+                Err(err) => console_log!("error sending message: {:?}", err),
+            }
+        }
+    }
+
+    pub fn connect_ws(&mut self, uuid: u128, instance: u64) {
+        let window = web_sys::window().expect("no global window exists");
+        let document = window.document().expect("should have a document window");
+    
+        //TODO: can this ugly string concatination be better? try not to use to_string too. 
+        let ws = WebSocket::new(&("ws://127.0.0.1:3030/ws/".to_owned() + &uuid.to_string() + "/"  + &instance.to_string() + "/")).expect("expected wss adress");
+ 
+        // For small binary messages, like CBOR, Arraybuffer is more efficient than Blob handling
+        ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
+    
+        let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
+            parse_message(&document, e);
+        });
+        ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
+        // forget the callback to keep it alive
+        onmessage_callback.forget();
+    
+        let onerror_callback = Closure::<dyn FnMut(_)>::new(move |e: ErrorEvent| {
+            console_log!("error event: {:?}", e);
+        });
+        ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+        onerror_callback.forget();
+    
+        self.ws = Some(ws);
+    }
+
+    fn close_ws(&mut self) {
+        if let Some(ws) = &self.ws {
+            ws.close().expect("should be able to close ws"); //TODO: Just print we couldn't close maybe?
+        }
+    }
+} 
+
+unsafe impl Send for FrontEndGame {}
+unsafe impl Sync for FrontEndGame {}
+
+
 //TODO: Return error here instead?
 async fn get_cards() {
     let mut opts = RequestInit::new();
@@ -90,50 +163,33 @@ async fn get_cards() {
 
 
             let window = web_sys::window().unwrap();
-            console_log!("HERE 1");
             if let Ok( resp_value ) = JsFuture::from(window.fetch_with_request(&request)).await {
-                console_log!("HERE 2");
                 assert!(resp_value.is_instance_of::<Response>());
-                console_log!("HERE 3");
                 let resp: Response = resp_value.dyn_into().unwrap();
-                console_log!("HERE 4");
 
-                // Convert this other `Promise` into a rust `Future`.
-
-                
                 if let Ok( abuf ) = JsFuture::from(resp.array_buffer().expect("js")).await {
-                    console_log!("HERE 5");
                     let array = js_sys::Uint8Array::new(&abuf);
 
-                    console_log!("HERE 6");
+                    let array_u8 = &array.to_vec()[..];
 
-                    let array_u8 = &array.to_vec()[..]; //TODO: maybe return byte array to JS, and then parse that on the game side? 
+                    let (uuid, instance, game): (u128,u64,Game) = bincode::deserialize(array_u8).unwrap();
 
-                    console_log!("HERE 7");
-
-                    let (uuid, id, game): (u128,u64,Game) = bincode::deserialize(array_u8).unwrap();
-
-                    console_log!("id: {:?}", id);
+                    console_log!("instance: {:?}", instance);
 
                     console_log!("player cards");
-                    console_log!("length of hand: {}",game.player.hand.cards.len());
-                    for card in &game.player.hand.cards {
+                    console_log!("length of cards: {}",game.cards.len());
+                    for card in &game.cards {
                         console_log!("{:?}", card.number);
                     }
 
-                    console_log!("computer cards");
-                    console_log!("length of hand: {}",game.computer.hand.cards.len());
-                    for card in &game.computer.hand.cards {
-                        console_log!("{:?}", card.number);
-                    }
-                    
                     let mut game_global = GAME.lock().unwrap();
 
-                    *game_global = Some(FrontEndGame{uuid: uuid, id: id, game: game, ws: None});
+                    *game_global = Some(FrontEndGame{uuid: uuid, instance: instance, game: game, ws: None, state: GameState::Playing});
                 } else {
                     console_log!("error getting array");
                 }
             } else {
+                //TODO: SET ERROR SCREEN!
                 console_log!("error getting response");
             }
         } else {
@@ -143,34 +199,57 @@ async fn get_cards() {
         console_log!("error setting init");
     }
 }
+fn setup_hand(document: &Document, cards: &Vec<Card>, player: Player, hand_id: &str){
+    //TODO: might generate and iter later, that'll make this nicer. 
+    let computer_hand = document
+        .get_element_by_id(hand_id)
+        .expect("should have choice_id on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("winnings_element should be an HtmlElement")
+        .children();
+
+    for (idx,card) in (cards).into_iter().filter(|&card| card.player == player).enumerate() {
+        let card_div = computer_hand
+            .get_with_index(idx as u32)
+            .expect("should be able to create choice button for letter");
+
+        card_div.set_text_content(Some(&card.number.to_string()));
+    }
+}
 
 fn setup_screen(document: &Document) {
     let game_global = GAME.lock().unwrap();
 
-    if let Some(game) = &*game_global { 
+    if let Some(game) = &*game_global {
         
-        //TODO: might generate and iter later, that'll make this nicer. 
-        for (idx,card) in (&game.game.computer.hand.cards).into_iter().enumerate() {
-            let card_id = "card-c".to_owned() + &idx.to_string();
-            let card_div = document
-                .get_element_by_id(&card_id)
-                .expect("should be able to create choice button for letter");
+        //setup computer hand.
+        setup_hand(document, &game.game.cards, Player::Computer, "computer-hand");
 
-            card_div.set_text_content(Some(&card.number.to_string()));
-        }
-
-        for (idx,card) in (&game.game.player.hand.cards).into_iter().enumerate() {
-            let card_id = "card-p".to_owned() + &idx.to_string(); //TODO: change to function so there are no mixups!
-            let card_div = document
-                .get_element_by_id(&card_id)
-                .expect("should be able to create choice button for letter");
-
-            card_div.set_text_content(Some(&card.number.to_string()));
-        }
+        setup_hand(document, &game.game.cards, Player::Person, "person-hand");
 
     } else {
         //TODO: figure out what to do when game is none.
     }
+}
+
+fn change_screen(document: &Document, new_screen: &str) {
+    document
+        .get_element_by_id("game")
+        .expect("should have choice_id on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("winnings_element should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set winnings_element style to visible");
+
+    document
+        .get_element_by_id(new_screen)
+        .expect("should have choice_id on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("winnings_element should be an HtmlElement")
+        .style()
+        .set_property("display", "flex")
+        .expect("should be able to set winnings_element style to visible");
 }
 
 fn setup_play_card(document: &Document ) {
@@ -184,84 +263,25 @@ fn setup_play_card(document: &Document ) {
             let mut game_global = GAME.lock().unwrap();
 
             if let Some(game) = &mut *game_global { 
-                if let Some(ws) = &game.ws{
-                    console_log!("clicked happened");
-                    let next_card_index = if game.game.player.hand.last_index_played+1 < game.game.player.hand.cards.len() { Some(game.game.player.hand.last_index_played+1) } else { None };
+                //TODO: How to get card now? 
+                let card = game.next_card(Player::Person);
 
-                    let card_played = game.game.player.hand.cards[game.game.player.hand.last_index_played];
+                if let Some(card) = card {
+                    //TODO: two clones here! Try to reduce!
+                    let card_clone = card.clone();
+                    let idx_of_player = game.next_card_idx(&card, Player::Person);
+                    if let Some(idx) = idx_of_player {
+                        play_card_actions(&document, (idx, &card), "person-hand");
 
-                    play_card_actions(&document, (game.game.player.hand.last_index_played, card_played.number), next_card_index);
-
-                    
-
-                    let bust = check_bust(&mut game.game, card_played, Who::Person);
-                    //gross if blocks here. try ENUM for game status.
-                    if bust {
-                        //lost screen.
-                        if let Some(ws) = &game.ws {
-                            ws.close().expect("should be able to close ws");
+                        //TODO: try to get rid of clones!
+                        game.card_played(card_clone.clone(), &document);
+                        
+                        //todo: Kind of weird to have the match in card_played and here. Is there a better way?
+                        if game.state == GameState::Playing {
+                            game.send_card(card_clone);
                         }
-
-                        //display none game screen, show lost screen
-                        document
-                            .get_element_by_id("game")
-                            .expect("should have choice_id on the page")
-                            .dyn_ref::<HtmlElement>()
-                            .expect("winnings_element should be an HtmlElement")
-                            .style()
-                            .set_property("display", "none")
-                            .expect("should be able to set winnings_element style to visible");
-
-                        document
-                            .get_element_by_id("lost")
-                            .expect("should have choice_id on the page")
-                            .dyn_ref::<HtmlElement>()
-                            .expect("winnings_element should be an HtmlElement")
-                            .style()
-                            .set_property("display", "flex")
-                            .expect("should be able to set winnings_element style to visible");
-                    } else {
-
-                        let won_game = check_win( &game.game );
-                        if won_game {
-                            //win screen.
-                            if let Some(ws) = &game.ws {
-                                ws.close().expect("should be able to close ws");
-                            }
-
-                            //display none game screen, show lost screen
-                            document
-                                .get_element_by_id("game")
-                                .expect("should have choice_id on the page")
-                                .dyn_ref::<HtmlElement>()
-                                .expect("winnings_element should be an HtmlElement")
-                                .style()
-                                .set_property("display", "none")
-                                .expect("should be able to set winnings_element style to visible");
-
-                            document
-                                .get_element_by_id("won")
-                                .expect("should have choice_id on the page")
-                                .dyn_ref::<HtmlElement>()
-                                .expect("winnings_element should be an HtmlElement")
-                                .style()
-                                .set_property("display", "flex")
-                                .expect("should be able to set winnings_element style to visible");
-                        } else {
-                            //TODO: think through if there is an issue with not sending the last card or a card the user played. 
-                            send_message(ws,card_played);
-                    
-                            //TODO: Don't love this, think of change. 
-                            game.game.player.hand.last_index_played += 1; 
-                        }
-                    } 
-                    
-                    //TODO: the logic to check win also edits the game vector. That should change. When that does this may be needed. As it is, the card is always removed when played. 
-                } else {
-                    //TODO: handle no ws.
+                    }
                 }
-            } else {
-                //TODO: figure out what to do when game is none.
             }
         },
     );
@@ -287,8 +307,7 @@ fn setup_start_game(document: &Document ) {
             let mut game_global = GAME.lock().unwrap();
 
             if let Some(game) = &mut *game_global { 
-                game.ws = Some(connect_ws(game.uuid, game.id));
-                //TODO: figure out what to do when game is none.
+                game.connect_ws(game.uuid, game.instance);
 
                 document
                     .get_element_by_id("start-game-container")
@@ -338,7 +357,6 @@ async fn setup() {
 fn parse_message(document: &Document, ws_message: MessageEvent) {
 
     if let Ok(abuf) = ws_message.data().dyn_into::<js_sys::ArrayBuffer>() {
-        console_log!("message event, received arraybuffer: {:?}", abuf);
         let array = js_sys::Uint8Array::new(&abuf);
         let array_u8 = &array.to_vec()[..];
         let card: Card = bincode::deserialize(array_u8).unwrap();
@@ -347,66 +365,11 @@ fn parse_message(document: &Document, ws_message: MessageEvent) {
 
         let mut game_global = GAME.lock().unwrap();
         if let Some(game) = &mut *game_global {
+            let idx_of_player = game.next_card_idx(&card, Player::Computer);
+            if let Some(idx) = idx_of_player {
+                play_card_actions(&document, (idx, &card), "computer-hand");
 
-            let idx = game.game.computer.hand.last_index_played;
-            computer_played(&document, (idx, card.number));
-            let bust = check_bust(&mut game.game, card, Who::Computer);
-            //gross if blocks here. try ENUM for game status.
-            if bust {
-                //lost screen.
-                if let Some(ws) = &game.ws {
-                    ws.close().expect("should be able to close ws");
-                }
-
-                //display none game screen, show lost screen
-                document
-                    .get_element_by_id("game")
-                    .expect("should have choice_id on the page")
-                    .dyn_ref::<HtmlElement>()
-                    .expect("winnings_element should be an HtmlElement")
-                    .style()
-                    .set_property("display", "none")
-                    .expect("should be able to set winnings_element style to visible");
-
-                document
-                    .get_element_by_id("lost")
-                    .expect("should have choice_id on the page")
-                    .dyn_ref::<HtmlElement>()
-                    .expect("winnings_element should be an HtmlElement")
-                    .style()
-                    .set_property("display", "flex")
-                    .expect("should be able to set winnings_element style to visible");
-            } else {
-
-                let won_game = check_win( &game.game );
-                if won_game {
-                    //win screen.
-                    if let Some(ws) = &game.ws {
-                        ws.close().expect("should be able to close ws");
-                    }
-
-                    //display none game screen, show lost screen
-                    //display none game screen, show lost screen
-                    document
-                        .get_element_by_id("game")
-                        .expect("should have choice_id on the page")
-                        .dyn_ref::<HtmlElement>()
-                        .expect("winnings_element should be an HtmlElement")
-                        .style()
-                        .set_property("display", "none")
-                        .expect("should be able to set winnings_element style to visible");
-
-                    document
-                        .get_element_by_id("won")
-                        .expect("should have choice_id on the page")
-                        .dyn_ref::<HtmlElement>()
-                        .expect("winnings_element should be an HtmlElement")
-                        .style()
-                        .set_property("display", "flex")
-                        .expect("should be able to set winnings_element style to visible");
-                } else {
-                        game.game.computer.hand.last_index_played += 1;
-                }
+                game.card_played(card, &document);
             } 
         } else {
             //TODO: figure out what to do when game is none.
@@ -415,39 +378,6 @@ fn parse_message(document: &Document, ws_message: MessageEvent) {
     } else {
         console_log!("Unsupported event message {:?}", ws_message.data());
     }
-}  
-
-
-//TODO: need actual game id here instead of hardcoded 3.
-fn connect_ws(uuid: u128, id: u64) -> WebSocket {
-    let window = web_sys::window().expect("no global window exists");
-    let document = window.document().expect("should have a document window");
-
-    //TODO: can this ugly string concatination be better? try not to use to_string too. 
-    let ws = WebSocket::new(&("ws://127.0.0.1:3030/ws/".to_owned() + &uuid.to_string() + "/"  + &id.to_string() + "/")).expect("expected wss adress");
-
-
-    console_log!("set ws");
-    // For small binary messages, like CBOR, Arraybuffer is more efficient than Blob handling
-    ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
-
-
-
-    let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
-        parse_message(&document, e);
-    });
-    
-    ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
-    // forget the callback to keep it alive
-    onmessage_callback.forget();
-
-    let onerror_callback = Closure::<dyn FnMut(_)>::new(move |e: ErrorEvent| {
-        console_log!("error event: {:?}", e);
-    });
-    ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
-    onerror_callback.forget();
-
-    ws
 }
 
 #[wasm_bindgen(start)]
@@ -458,68 +388,18 @@ pub async fn main() -> Result<(), JsValue> {
     Ok(())
 }
 
-//TODO: I think we need to know who played this. As well as think if this should be a member function. As well as anything else.
-fn check_bust( game: &Game, card: Card, who: Who) -> bool{
-    //TODO: check game to see if player sent a card higher than the computer has yet to play. 
-
-    //TODO: this logic can allow a player to play a higher card than the lowest in their hand. Should change to check against a list of cards not played. 
-
-    //TODO: this can be cleaner. easy way if left as is is to return the not polayed and keep all else the saem. 
-
-    //TODO: Idk now i kind of like the idea of popping the first card, like an actual hand of cards would be when a player plays. We will see. 
-    let bust = match who {
-        Who::Computer => {
-            console_log!("computer played");
-            let not_played = &game.player.hand.cards[game.player.hand.last_index_played..];
-            console_log!("card_played: {}", card.number);
-            
-            let mut lost = false;
-            for card_to_check in not_played {
-                if card.number > card_to_check.number {
-                    console_log!("card_checked: {}", card_to_check.number);
-                    console_log!("Game lost!"); //TODO: handle game lost.
-                    lost = true
-                }
-            }
-            lost
-        },
-        Who::Person => {
-            console_log!("player played");
-            let not_played = &game.computer.hand.cards[game.computer.hand.last_index_played..];
-            console_log!("card_played: {}", card.number);
-
-            let mut lost = false;
-            for card_to_check in not_played {
-                if card.number > card_to_check.number {
-                    console_log!("card_checked: {}", card_to_check.number);
-                    console_log!("Game lost!"); //TODO: handle game lost.
-                    lost = true
-                }
-            }
-            lost
-        },
-    };
-
-    bust
-
-}
-
-//TODO: I think we need to know who played this. As well as think if this should be a member function. As well as anything else.
-fn check_win( game: &Game ) -> bool {
-
-    if (game.computer.hand.last_index_played == game.computer.hand.cards.len() && game.player.hand.last_index_played == game.player.hand.cards.len() -1) ||  (game.computer.hand.last_index_played == game.computer.hand.cards.len() - 1 && game.player.hand.last_index_played == game.player.hand.cards.len()) {
-        true
-    } else {
-        false
-    }
-
-}
-
-fn play_card_actions(document: &Document, card_played: (usize,u8), next_card: Option<usize>) {
+fn play_card_actions(document: &Document, card_played: (usize,&Card), hand: &str) {
     //TODO: update screen with the card played in the play pool and change hand card simultaniously. 
-    let card_played_element = document
-        .get_element_by_id(&("card-p".to_owned() + &card_played.0.to_string()))
-        .expect("should have choice_id on the page");
+    let computer_hand = document
+        .get_element_by_id(hand)
+        .expect("should have choice_id on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("winnings_element should be an HtmlElement")
+        .children();
+
+    let card_played_element = computer_hand
+        .get_with_index(card_played.0 as u32)
+        .expect("should be able to create choice button for letter");
 
     let play_pool_element = document
         .get_element_by_id("played-card")
@@ -534,58 +414,19 @@ fn play_card_actions(document: &Document, card_played: (usize,u8), next_card: Op
         .expect("should be able to set winnings_element style to visible");
 
     //Rather than highlighting, change fill color to that orange, border to some highlighted color(purple?), and text to default color, and the others will just have an orange border and card writing.
-    if let Some(card_idx) = next_card {
-        let next_card_element = document
-        .get_element_by_id(&("card-p".to_owned() + &card_idx.to_string()))
-        .expect("should have choice_id on the page");
-
-        next_card_element
-            .dyn_ref::<HtmlElement>()
-            .expect("winnings_element should be an HtmlElement")
-            .set_attribute("class","next-card card")
-            .expect("could not set calss");
-
-
+    if card_played.1.player == Player::Person{
+        let next_card = card_played_element.next_element_sibling();
+        if let Some(next_card_element) = next_card {
+            next_card_element
+                .dyn_ref::<HtmlElement>()
+                .expect("winnings_element should be an HtmlElement")
+                .set_attribute("class","next-card card")
+                .expect("could not set calss");
+        }
     }
 
     play_pool_element
         .dyn_ref::<HtmlElement>()
         .expect("winnings_element should be an HtmlElement")
-        .set_inner_html(&card_played.1.to_string());
+        .set_inner_html(&card_played.1.number.to_string());
 }
-
-fn computer_played(document: &Document, card_played: (usize, u8)) {
-    //TODO: update screen with the card played in the play pool and change hand card simultaniously. 
-    let card_played_element = document
-        .get_element_by_id(&("card-c".to_owned() + &card_played.0.to_string()))
-        .expect("should have choice_id on the page");
-
-    let play_pool_element = document
-        .get_element_by_id("played-card")
-        .expect("should have choice_id on the page");
-
-    //TODO: probably change what happens here but good for now I think. 
-    card_played_element
-        .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
-        .style()
-        .set_property("visibility", "hidden")
-        .expect("should be able to set winnings_element style to visible");
-
-    play_pool_element
-        .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
-        .set_inner_html(&card_played.1.to_string());
-}
-
-fn send_message(ws: &WebSocket, played_card: Card) {
-    let encoded: Vec<u8> = bincode::serialize(&played_card).unwrap();
-
-    match ws.send_with_u8_array(&encoded[..]) {
-        Ok(_) => console_log!("binary message successfully sent"),
-        Err(err) => console_log!("error sending message: {:?}", err),
-    }
-    
-}
-
-//IMPORTANT: REALLY ODD ISSUE WITH ONLY 6 cards but 7 being filled and doubling the first number. 
