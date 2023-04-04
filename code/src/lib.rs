@@ -56,12 +56,12 @@ pub struct FrontEndGame {
 }
 
 impl FrontEndGame {
-    pub fn card_played(&mut self, card: Card, document: &Document) {
+    pub fn card_played(&mut self, card: &Card, document: &Document) {
         if self.game.cards.contains(&card) {
             let number = card.number;
 
             //perform checks
-            self.game.cards_played.push(card);
+            self.game.cards_played.push(card.clone());
             if self.game.cards_played == self.game.cards {
                 self.state = GameState::Won;
             } else {
@@ -82,17 +82,20 @@ impl FrontEndGame {
                     change_screen(document, "won");
                 },
                 GameState::Playing => {
-                    println!("TODO!");
+                    if card.player == Player::Person {
+                        self.send_card(&card);
+                    }
                 }
             }
         }
     }
 
-    pub fn next_card(&self, player: Player) -> Option<&Card> {
+    pub fn next_card(&self, player: Player) -> Option<Card> {
         self.game.cards
             .iter()
             .filter(|&x| !self.game.cards_played.contains(&x))
             .find(|&x| x.player == player)
+            .map(|x| x.clone())
     }
 
     pub fn next_card_idx(&self, card: &Card, player: Player) -> Option<usize> {
@@ -102,7 +105,7 @@ impl FrontEndGame {
             .position(|x| x == card)
     }
 
-    pub fn send_card(&self, card: Card) {
+    pub fn send_card(&self, card: &Card) {
         if let Some(ws) = &self.ws {
             let encoded: Vec<u8> = bincode::serialize(&card).unwrap();
 
@@ -117,19 +120,14 @@ impl FrontEndGame {
         let window = web_sys::window().expect("no global window exists");
         let document = window.document().expect("should have a document window");
     
-        //TODO: can this ugly string concatination be better? try not to use to_string too. 
+        //WebSocket Setup.
         let ws = WebSocket::new(&("ws://127.0.0.1:3030/ws/".to_owned() + &uuid.to_string() + "/"  + &instance.to_string() + "/")).expect("expected wss adress");
- 
-        // For small binary messages, like CBOR, Arraybuffer is more efficient than Blob handling
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
-    
         let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
             parse_message(&document, e);
         });
         ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
-        // forget the callback to keep it alive
         onmessage_callback.forget();
-    
         let onerror_callback = Closure::<dyn FnMut(_)>::new(move |e: ErrorEvent| {
             console_log!("error event: {:?}", e);
         });
@@ -263,23 +261,14 @@ fn setup_play_card(document: &Document ) {
             let mut game_global = GAME.lock().unwrap();
 
             if let Some(game) = &mut *game_global { 
-                //TODO: How to get card now? 
                 let card = game.next_card(Player::Person);
 
                 if let Some(card) = card {
-                    //TODO: two clones here! Try to reduce!
-                    let card_clone = card.clone();
                     let idx_of_player = game.next_card_idx(&card, Player::Person);
                     if let Some(idx) = idx_of_player {
                         play_card_actions(&document, (idx, &card), "person-hand");
 
-                        //TODO: try to get rid of clones!
-                        game.card_played(card_clone.clone(), &document);
-                        
-                        //todo: Kind of weird to have the match in card_played and here. Is there a better way?
-                        if game.state == GameState::Playing {
-                            game.send_card(card_clone);
-                        }
+                        game.card_played(&card, &document);
                     }
                 }
             }
@@ -369,7 +358,7 @@ fn parse_message(document: &Document, ws_message: MessageEvent) {
             if let Some(idx) = idx_of_player {
                 play_card_actions(&document, (idx, &card), "computer-hand");
 
-                game.card_played(card, &document);
+                game.card_played(&card, &document);
             } 
         } else {
             //TODO: figure out what to do when game is none.
