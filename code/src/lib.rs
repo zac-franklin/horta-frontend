@@ -18,7 +18,7 @@ extern "C" {
 }
 
 lazy_static! {
-    static ref GAME: Mutex<Option<FrontEndGame>> = Mutex::new(None);
+    static ref HORTA: Mutex<Option<Horta>> = Mutex::new(None);
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -47,7 +47,7 @@ pub enum GameState {
     Lost,
 }
 
-pub struct FrontEndGame {
+pub struct Horta {
     uuid: u128,
     instance: u64,
     game: Game,
@@ -55,7 +55,7 @@ pub struct FrontEndGame {
     state: GameState
 }
 
-impl FrontEndGame {
+impl Horta {
     pub fn card_played(&mut self, card: &Card, document: &Document) {
         if self.game.cards.contains(&card) {
             let number = card.number;
@@ -65,7 +65,6 @@ impl FrontEndGame {
             if self.game.cards_played == self.game.cards {
                 self.state = GameState::Won;
             } else {
-                //TODO: Get rid of copy here.
                 if self.game.cards.iter().filter(|x| !self.game.cards_played.contains(&x)).find(|&x| x.number < number) != None {
                     self.state = GameState::Lost;
                 }
@@ -109,9 +108,8 @@ impl FrontEndGame {
         if let Some(ws) = &self.ws {
             let encoded: Vec<u8> = bincode::serialize(&card).unwrap();
 
-            match ws.send_with_u8_array(&encoded[..]) {
-                Ok(_) => console_log!("binary message successfully sent"),
-                Err(err) => console_log!("error sending message: {:?}", err),
+            if let Err(err) =  ws.send_with_u8_array(&encoded[..]) {
+                console_log!("error sending message: {:?}", err);
             }
         }
     }
@@ -139,17 +137,15 @@ impl FrontEndGame {
 
     fn close_ws(&mut self) {
         if let Some(ws) = &self.ws {
-            ws.close().expect("should be able to close ws"); //TODO: Just print we couldn't close maybe?
+            ws.close().expect("should be able to close ws");
         }
     }
 } 
 
-unsafe impl Send for FrontEndGame {}
-unsafe impl Sync for FrontEndGame {}
+unsafe impl Send for Horta {}
+unsafe impl Sync for Horta {}
 
-
-//TODO: Return error here instead?
-async fn get_cards() {
+async fn get_cards() -> Result<&'static str, &'static str> {
     let mut opts = RequestInit::new();
     opts.method("GET");
     opts.mode(RequestMode::Cors);
@@ -165,69 +161,60 @@ async fn get_cards() {
                 assert!(resp_value.is_instance_of::<Response>());
                 let resp: Response = resp_value.dyn_into().unwrap();
 
-                if let Ok( abuf ) = JsFuture::from(resp.array_buffer().expect("js")).await {
+                if let Ok( abuf ) = JsFuture::from(resp.array_buffer().expect("should have array buffer")).await {
                     let array = js_sys::Uint8Array::new(&abuf);
 
                     let array_u8 = &array.to_vec()[..];
 
                     let (uuid, instance, game): (u128,u64,Game) = bincode::deserialize(array_u8).unwrap();
 
-                    console_log!("instance: {:?}", instance);
+                    let mut horta = HORTA.lock().unwrap();
 
-                    console_log!("player cards");
-                    console_log!("length of cards: {}",game.cards.len());
-                    for card in &game.cards {
-                        console_log!("{:?}", card.number);
-                    }
+                    *horta = Some(Horta{uuid: uuid, instance: instance, game: game, ws: None, state: GameState::Playing});
 
-                    let mut game_global = GAME.lock().unwrap();
-
-                    *game_global = Some(FrontEndGame{uuid: uuid, instance: instance, game: game, ws: None, state: GameState::Playing});
+                    Ok("Got Game!")
                 } else {
-                    console_log!("error getting array");
+                    Err("error reading array")
                 }
             } else {
-                //TODO: SET ERROR SCREEN!
-                console_log!("error getting response");
+                Err("error parsing response")
             }
         } else {
-            console_log!("error setting head");
+            Err("error setting headers")
         }
     } else {
-        console_log!("error setting init");
+        Err("error setting initializing request")
     }
 }
+
 fn setup_hand(document: &Document, cards: &Vec<Card>, player: Player, hand_id: &str){
-    //TODO: might generate and iter later, that'll make this nicer. 
     let computer_hand = document
         .get_element_by_id(hand_id)
-        .expect("should have choice_id on the page")
+        .expect("should have hand on the page")
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("hand should be an HtmlElement")
         .children();
 
     for (idx,card) in (cards).into_iter().filter(|&card| card.player == player).enumerate() {
         let card_div = computer_hand
             .get_with_index(idx as u32)
-            .expect("should be able to create choice button for letter");
+            .expect("should be able to grab card by index");
 
         card_div.set_text_content(Some(&card.number.to_string()));
     }
 }
 
 fn setup_screen(document: &Document) {
-    let game_global = GAME.lock().unwrap();
+    let horta_lock = HORTA.lock().unwrap();
 
-    if let Some(game) = &*game_global {
+    if let Some(horta) = &*horta_lock {
         
         //setup computer hand.
-        setup_hand(document, &game.game.cards, Player::Computer, "computer-hand");
+        setup_hand(document, &horta.game.cards, Player::Computer, "computer-hand");
 
-        setup_hand(document, &game.game.cards, Player::Person, "person-hand");
+        setup_hand(document, &horta.game.cards, Player::Person, "person-hand");
 
-    } else {
-        //TODO: figure out what to do when game is none.
-    }
+    } 
 }
 
 fn change_screen(document: &Document, new_screen: &str) {
@@ -251,24 +238,22 @@ fn change_screen(document: &Document, new_screen: &str) {
 }
 
 fn setup_play_card(document: &Document ) {
-
-    //TODO: weird bug with fast clicks
     let handle_card_play = Closure::<dyn Fn()>::new(
         move || {
             let window = web_sys::window().expect("no global window exists"); //TODO: see if this can be avoided.
             let document = window.document().expect("should have a document window");
 
-            let mut game_global = GAME.lock().unwrap();
+            let mut horta_lock = HORTA.lock().unwrap();
 
-            if let Some(game) = &mut *game_global { 
-                let card = game.next_card(Player::Person);
+            if let Some(horta) = &mut *horta_lock { 
+                let card = horta.next_card(Player::Person);
 
                 if let Some(card) = card {
-                    let idx_of_player = game.next_card_idx(&card, Player::Person);
-                    if let Some(idx) = idx_of_player {
+                    let next_idx = horta.next_card_idx(&card, Player::Person);
+                    if let Some(idx) = next_idx {
                         play_card_actions(&document, (idx, &card), "person-hand");
 
-                        game.card_played(&card, &document);
+                        horta.card_played(&card, &document);
                     }
                 }
             }
@@ -277,53 +262,52 @@ fn setup_play_card(document: &Document ) {
 
     document
         .get_element_by_id("play-card")
-        .expect("should have choice_id on the page")
+        .expect("should have play-card on the page")
         .dyn_ref::<HtmlElement>()
-        .expect("choice_id should be HtmlElement")
+        .expect("cplay-card should be HtmlElement")
         .set_onmousedown(Some(handle_card_play.as_ref().unchecked_ref()));
 
     handle_card_play.forget();
 }
 
 fn setup_start_game(document: &Document ) {
-
     let handle_start_game = Closure::<dyn Fn()>::new(
         move || {
 
             let window = web_sys::window().expect("no global window exists"); //TODO: see if this can be avoided.
             let document = window.document().expect("should have a document window");
 
-            let mut game_global = GAME.lock().unwrap();
+            let mut horta_lock = HORTA.lock().unwrap();
 
-            if let Some(game) = &mut *game_global { 
-                game.connect_ws(game.uuid, game.instance);
+            if let Some(horta) = &mut *horta_lock { 
+                horta.connect_ws(horta.uuid, horta.instance);
 
                 document
                     .get_element_by_id("start-game-container")
-                    .expect("should have choice_id on the page")
+                    .expect("should have start-game-container on the page")
                     .dyn_ref::<HtmlElement>()
-                    .expect("winnings_element should be an HtmlElement")
+                    .expect("start-game-container should be an HtmlElement")
                     .style()
                     .set_property("display", "none")
-                    .expect("should be able to set winnings_element style to visible");
+                    .expect("should be able to set start-game-container diplay to none");
 
                 document
                     .get_element_by_id("play-card-container")
-                    .expect("should have choice_id on the page")
+                    .expect("should have play-card-container on the page")
                     .dyn_ref::<HtmlElement>()
-                    .expect("winnings_element should be an HtmlElement")
+                    .expect("play-card-container should be an HtmlElement")
                     .style()
                     .set_property("display", "flex")
-                    .expect("should be able to set winnings_element style to visible");
+                    .expect("should be able to set play-card-container display to none");
             }
         },
     );
 
     document
         .get_element_by_id("start-game")
-        .expect("should have choice_id on the page")
+        .expect("should have start-game on the page")
         .dyn_ref::<HtmlElement>()
-        .expect("choice_id should be HtmlElement")
+        .expect("start-game should be HtmlElement")
         .set_onclick(Some(handle_start_game.as_ref().unchecked_ref()));
 
     handle_start_game.forget();
@@ -333,89 +317,84 @@ async fn setup() {
     let window = web_sys::window().expect("no global window exists");
     let document = window.document().expect("should have a document window");
 
-    get_cards().await;
+    match get_cards().await {
+        Ok(_) => {
+            setup_start_game(&document);
 
-    setup_start_game(&document);
+            setup_play_card(&document);
 
-    setup_play_card(&document);
+            setup_screen(&document);
+        },
+        Err(err) => {
+            change_screen(&document, "err");
+            console_log!("Unsupported event message {:?}", err);
+        }
+    }
 
-    setup_screen(&document);
+    
 }
 
-//TODO: Return Option
 fn parse_message(document: &Document, ws_message: MessageEvent) {
-
     if let Ok(abuf) = ws_message.data().dyn_into::<js_sys::ArrayBuffer>() {
         let array = js_sys::Uint8Array::new(&abuf);
         let array_u8 = &array.to_vec()[..];
-        let card: Card = bincode::deserialize(array_u8).unwrap();
+        if let Ok(card) = bincode::deserialize::<Card>(array_u8){
+            let mut horta_lock = HORTA.lock().unwrap();
+            if let Some(horta) = &mut *horta_lock {
+                let next_idx = horta.next_card_idx(&card, Player::Computer);
+                if let Some(idx) = next_idx {
+                    play_card_actions(&document, (idx, &card), "computer-hand");
 
-        console_log!("computer played: {} ", card.number);
-
-        let mut game_global = GAME.lock().unwrap();
-        if let Some(game) = &mut *game_global {
-            let idx_of_player = game.next_card_idx(&card, Player::Computer);
-            if let Some(idx) = idx_of_player {
-                play_card_actions(&document, (idx, &card), "computer-hand");
-
-                game.card_played(&card, &document);
-            } 
-        } else {
-            //TODO: figure out what to do when game is none.
+                    horta.card_played(&card, &document);
+                } 
+            }
         }
-
-    } else {
-        console_log!("Unsupported event message {:?}", ws_message.data());
-    }
+    } 
 }
 
 #[wasm_bindgen(start)]
 pub async fn main() -> Result<(), JsValue> {
-    // Connect to websocket server
     setup().await;
 
     Ok(())
 }
 
 fn play_card_actions(document: &Document, card_played: (usize,&Card), hand: &str) {
-    //TODO: update screen with the card played in the play pool and change hand card simultaniously. 
     let computer_hand = document
         .get_element_by_id(hand)
-        .expect("should have choice_id on the page")
+        .expect("should have handon the page")
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("hand should be an HtmlElement")
         .children();
 
     let card_played_element = computer_hand
         .get_with_index(card_played.0 as u32)
-        .expect("should be able to create choice button for letter");
+        .expect("should be able to get card of hand wiht index");
 
     let play_pool_element = document
         .get_element_by_id("played-card")
-        .expect("should have choice_id on the page");
+        .expect("should have played-card on the page");
 
-    //TODO: probably change what happens here but good for now I think. 
     card_played_element
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("card should be an HtmlElement")
         .style()
         .set_property("visibility", "hidden")
-        .expect("should be able to set winnings_element style to visible");
+        .expect("should be able to set card style to hidden");
 
-    //Rather than highlighting, change fill color to that orange, border to some highlighted color(purple?), and text to default color, and the others will just have an orange border and card writing.
     if card_played.1.player == Player::Person{
         let next_card = card_played_element.next_element_sibling();
         if let Some(next_card_element) = next_card {
             next_card_element
                 .dyn_ref::<HtmlElement>()
-                .expect("winnings_element should be an HtmlElement")
+                .expect("next card should be an HtmlElement")
                 .set_attribute("class","next-card card")
-                .expect("could not set calss");
+                .expect("should be able to set class of next card");
         }
     }
 
     play_pool_element
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("played-card should be an HtmlElement")
         .set_inner_html(&card_played.1.number.to_string());
 }

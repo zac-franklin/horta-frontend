@@ -27,7 +27,6 @@
 				</p>
 			</div>
 
-			<!--TODO: Button for readying-->
 			<div id = "game">
 
 				<div id="computer-hand" class="hand">
@@ -118,6 +117,18 @@
 				</p>
 				<img style="margin-top:10px;width:100%" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
 			</div>
+
+			<div id="err" style="display:none">
+				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
+					<div class="comic" text="Ooop!">
+						Ooop! 
+					</div>
+				</div>
+
+				<p style="margin-top:10px;">
+					Error communicating with silicon being. Try again later.
+				</p>
+			</div>
 			
 		</div>
 
@@ -131,7 +142,7 @@
 			import init from './pkg/horta-frontend.js';
 
 			async function run () {
-			    await init(); //Sets up basica game and rules. //Might be cool to have a shuffling card animation. Or just loading until play from the rules and has cards. Or no rules or crads until have game. I like the third to start I think. //So this just sets up loading screen.
+			    await init(); 
 			}
 
 			run();
