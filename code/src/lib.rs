@@ -388,7 +388,7 @@ fn play_card_actions(document: &Document, card_played: (usize,&Card), hand: &str
             next_card_element
                 .dyn_ref::<HtmlElement>()
                 .expect("next card should be an HtmlElement")
-                .set_attribute("class","next-card card")
+                .set_attribute("class","horta-next-card card")
                 .expect("should be able to set class of next card");
         }
     }

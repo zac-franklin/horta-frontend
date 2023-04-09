@@ -15,7 +15,7 @@
   width: 9%;
 }
 
-.next-card {
+.horta-next-card {
   background-color: #FD7014;
   color: #000000;
 }
@@ -59,7 +59,7 @@
   margin-top: 100px;
 }
 
-.button {
+.horta-button {
   font-size: calc(24px + .6vw);;
   flex:0 0 auto;
   display:flex;
@@ -73,12 +73,12 @@
   color: #FD7014;
 }
 
-.button:hover {
+.horta-button:hover {
   background-color: #FD7014;
   color: #000000; 
 }
 
-.button:active {
+.horta-button:active {
   background-color: #FD7014;
   color: #000000;
 }
