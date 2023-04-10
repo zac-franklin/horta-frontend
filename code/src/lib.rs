@@ -119,7 +119,7 @@ impl Horta {
         let document = window.document().expect("should have a document window");
     
         //WebSocket Setup.
-        let ws = WebSocket::new(&("ws://127.0.0.1:3030/ws/".to_owned() + &uuid.to_string() + "/"  + &instance.to_string() + "/")).expect("expected wss adress");
+        let ws = WebSocket::new(&("wss://roonr.com/horta/api/ws/".to_owned() + &uuid.to_string() + "/"  + &instance.to_string() + "/")).expect("expected wss adress");
         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
         let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
             parse_message(&document, e);
@@ -150,7 +150,7 @@ async fn get_cards() -> Result<&'static str, &'static str> {
     opts.method("GET");
     opts.mode(RequestMode::Cors);
 
-    let url = format!("http://127.0.0.1:3030/get-cards");
+    let url = format!("https://roonr.com/horta/api/get-cards");
 
     if let Ok( request ) = Request::new_with_str_and_init(&url, &opts) {
         if let Ok(_) = request.headers().set("Accept", "application/octet-stream"){
