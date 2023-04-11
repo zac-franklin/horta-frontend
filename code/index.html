@@ -19,7 +19,7 @@
 		<div id="app" class="center">
 			<div id="intro">
 				<p style="margin-top:7px;">
-					<b>Goal of the game:</b> Play dealt cards in correct numerical order.
+					<b>Goal of the game:</b> Play cards in correct numerical order.
 				</p>
 
 				<p style="font-size:12px;margin-top:7px;margin-bottom:14px;">
@@ -27,7 +27,7 @@
 				</p>
 			</div>
 
-			<div id = "game">
+			<div id = "game" style="display:none;">
 
 				<div id="computer-hand" class="hand">
 					<div id="card-c0" class="card">
@@ -89,7 +89,7 @@
 				</div>
 			</div>
 
-			<div id="lost" style="display:none">
+			<div id="lost" class="result" style="display:flex">
 				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
 					<div class="comic" text="Shucks!">
 						Shucks!
@@ -97,15 +97,15 @@
 				</div>
 
 				<p style="margin-top:10px;">
-					Here is a blurred picure of Pat, Do better and you can see the real thing!
+					Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!
 				</p>
-				<img class="blur" style="margin-top:10px;width:100%" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+				<img class="blur" style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
 				<div class="start-game-container" style="display:flex;">
 					<button id="start-game" class="horta-button" onclick="reload_page()">RETRY</button>
 				</div>
 			</div>
 
-			<div id="won" style="display:none">
+			<div id="won" class="result" style="display:flex;">
 				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
 					<div class="comic" text="Nice!">
 						Nice!
@@ -113,12 +113,12 @@
 				</div>
 
 				<p style="margin-top:10px;">
-					Here is a picture of my dog, Patrick, as a reward. 
+					Here is a picture of my dog, Patrick, as a reward. Stay fly!
 				</p>
-				<img style="margin-top:10px;width:100%" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+				<img style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
 			</div>
 
-			<div id="err" style="display:none">
+			<div id="err" class="result" style="display:none;">
 				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
 					<div class="comic" text="Ooop!">
 						Ooop! 

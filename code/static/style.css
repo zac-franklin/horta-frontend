@@ -87,3 +87,10 @@
   filter: blur(8px);
   -webkit-filter: blur(8px);
 }
+
+.result {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
