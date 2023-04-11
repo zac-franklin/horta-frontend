@@ -15,6 +15,10 @@
   width: 9%;
 }
 
+.flipped {
+  background-color: #FD7014;
+}
+
 .horta-next-card {
   background-color: #FD7014;
   color: #000000;

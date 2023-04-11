@@ -208,9 +208,6 @@ fn setup_screen(document: &Document) {
     let horta_lock = HORTA.lock().unwrap();
 
     if let Some(horta) = &*horta_lock {
-        
-        //setup computer hand.
-        setup_hand(document, &horta.game.cards, Player::Computer, "computer-hand");
 
         setup_hand(document, &horta.game.cards, Player::Person, "person-hand");
 
