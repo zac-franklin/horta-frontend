@@ -19,7 +19,7 @@
 		<div id="app" class="center">
 			<div id="intro">
 				<p style="margin-top:7px;">
-					<b>Goal of the game:</b> Combine your cards with the Computer's in the correct numerical order.
+					<b>Goal of the game:</b> Work with the Computer to organize the cards delt in ascending order.
 				</p>
 
 				<p style="font-size:12px;margin-top:7px;margin-bottom:14px;">
@@ -79,6 +79,10 @@
 					</div>
 				</div>
 
+				<div id="retry-card-container" class="start-game-container" style="display:none;">
+					<button id="retry-game" class="horta-button" onclick="reload_page()">RETRY</button>
+				</div>
+
 				<div id="play-card-container" class="play-card-container" style="display:none;">
 					<button id="play-card" class="horta-button">PLAY CARD</button>
 				</div>
@@ -95,13 +99,10 @@
 					</div>
 				</div>
 
-				<p style="margin-top:10px;margin-bottom:10px;">
+				<p id="lost-blurb" style="margin-top:10px;margin-bottom:10px;">
 					Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!
 				</p>
 				<img class="blur" style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
-				<div class="start-game-container" style="display:flex;">
-					<button id="start-game" class="horta-button" onclick="reload_page()">RETRY</button>
-				</div>
 			</div>
 
 			<div id="won" class="result" style="display:none;">

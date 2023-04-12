@@ -74,11 +74,11 @@ impl Horta {
             match self.state {
                 GameState::Lost => {
                     self.close_ws();
-                    change_screen(document, "lost");
+                    lost_screen(document, &card.player);
                 },
                 GameState::Won => {
                     self.close_ws();
-                    change_screen(document, "won");
+                    victory_screen(document);
                 },
                 GameState::Playing => {
                     if card.player == Player::Person {
@@ -214,24 +214,158 @@ fn setup_screen(document: &Document) {
     } 
 }
 
-fn change_screen(document: &Document, new_screen: &str) {
+fn lost_screen(document: &Document, player: &Player) {
     document
-        .get_element_by_id("game")
-        .expect("should have choice_id on the page")
+        .get_element_by_id("err")
+        .expect("should have err on the page")
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("err should be an HtmlElement")
         .style()
         .set_property("display", "none")
-        .expect("should be able to set winnings_element style to visible");
+        .expect("should be able to set err display to none");
 
     document
-        .get_element_by_id(new_screen)
-        .expect("should have choice_id on the page")
+        .get_element_by_id("won")
+        .expect("should have won on the page")
         .dyn_ref::<HtmlElement>()
-        .expect("winnings_element should be an HtmlElement")
+        .expect("won should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set won display to none");
+
+    let blurb = match player {
+        Player::Computer => {
+            "The Computer played a higher card than one you have. Welp, Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!"
+        },
+        Player::Person => {
+            "You played a higher card than one the computer has. Welp, Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!"
+        },
+    };
+
+    document
+        .get_element_by_id("lost-blurb")
+        .expect("should have won on the page")
+        .set_inner_html(blurb);
+
+    document
+        .get_element_by_id("played-card")
+        .expect("should have played-card on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("played-card should be an HtmlElement")
+        .set_attribute("class","horta-wrong-card card")
+        .expect("should be able to set class of next card");
+
+    document
+        .get_element_by_id("start-game-container")
+        .expect("should have start-game-container on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("start-game-container should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set start-game-container diplay to none");
+
+    document
+        .get_element_by_id("play-card-container")
+        .expect("should have play-card-container on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("play-card-container should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set play-card-container display to none");
+
+    document
+        .get_element_by_id("retry-card-container")
+        .expect("should have retry-card-container on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("retry-card-container should be an HtmlElement")
         .style()
         .set_property("display", "flex")
-        .expect("should be able to set winnings_element style to visible");
+        .expect("should be able to set retry-card-container diplay to flex");
+
+    document
+        .get_element_by_id("lost")
+        .expect("should have lost on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("lost should be an HtmlElement")
+        .style()
+        .set_property("display", "flex")
+        .expect("should be able to set lost display to flex");
+}
+
+fn err_screen(document: &Document) {
+    document
+        .get_element_by_id("game")
+        .expect("should have game on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("game should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set game display to none");
+
+    document
+        .get_element_by_id("lost")
+        .expect("should have lost on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("lost should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set lost display to none");
+
+    document
+        .get_element_by_id("won")
+        .expect("should have won on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("won should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set won display to none");
+
+    document
+        .get_element_by_id("err")
+        .expect("should have err on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("err should be an HtmlElement")
+        .style()
+        .set_property("display", "flex")
+        .expect("should be able to set err display to flex");
+}
+
+fn victory_screen(document: &Document) {
+    document
+        .get_element_by_id("game")
+        .expect("should have game on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("game should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set game display to none");
+
+    document
+        .get_element_by_id("lost")
+        .expect("should have lost on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("lost should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set lost display to none");
+
+    document
+        .get_element_by_id("err")
+        .expect("should have err on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("err should be an HtmlElement")
+        .style()
+        .set_property("display", "none")
+        .expect("should be able to set err display to none");
+
+    document
+        .get_element_by_id("won")
+        .expect("should have won on the page")
+        .dyn_ref::<HtmlElement>()
+        .expect("won should be an HtmlElement")
+        .style()
+        .set_property("display", "flex")
+        .expect("should be able to set won display to flex");
 }
 
 fn setup_play_card(document: &Document ) {
@@ -289,13 +423,22 @@ fn setup_start_game(document: &Document ) {
                     .expect("should be able to set start-game-container diplay to none");
 
                 document
+                    .get_element_by_id("retry-card-container")
+                    .expect("should have retry-card-container on the page")
+                    .dyn_ref::<HtmlElement>()
+                    .expect("retry-card-container should be an HtmlElement")
+                    .style()
+                    .set_property("display", "none")
+                    .expect("should be able to set retry-card-container diplay to none");
+
+                document
                     .get_element_by_id("play-card-container")
                     .expect("should have play-card-container on the page")
                     .dyn_ref::<HtmlElement>()
                     .expect("play-card-container should be an HtmlElement")
                     .style()
                     .set_property("display", "flex")
-                    .expect("should be able to set play-card-container display to none");
+                    .expect("should be able to set play-card-container display to flex");
             }
         },
     );
@@ -323,7 +466,7 @@ async fn setup() {
             setup_screen(&document);
         },
         Err(err) => {
-            change_screen(&document, "err");
+            err_screen(&document);
             console_log!("Unsupported event message {:?}", err);
         }
     }
