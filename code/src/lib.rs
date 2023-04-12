@@ -274,15 +274,6 @@ fn lost_screen(document: &Document, player: &Player) {
         .expect("should be able to set play-card-container display to none");
 
     document
-        .get_element_by_id("retry-card-container")
-        .expect("should have retry-card-container on the page")
-        .dyn_ref::<HtmlElement>()
-        .expect("retry-card-container should be an HtmlElement")
-        .style()
-        .set_property("display", "flex")
-        .expect("should be able to set retry-card-container diplay to flex");
-
-    document
         .get_element_by_id("lost")
         .expect("should have lost on the page")
         .dyn_ref::<HtmlElement>()
@@ -421,15 +412,6 @@ fn setup_start_game(document: &Document ) {
                     .style()
                     .set_property("display", "none")
                     .expect("should be able to set start-game-container diplay to none");
-
-                document
-                    .get_element_by_id("retry-card-container")
-                    .expect("should have retry-card-container on the page")
-                    .dyn_ref::<HtmlElement>()
-                    .expect("retry-card-container should be an HtmlElement")
-                    .style()
-                    .set_property("display", "none")
-                    .expect("should be able to set retry-card-container diplay to none");
 
                 document
                     .get_element_by_id("play-card-container")
