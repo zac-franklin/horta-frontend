@@ -252,7 +252,7 @@ fn lost_screen(document: &Document, player: &Player) {
         .expect("should have played-card on the page")
         .dyn_ref::<HtmlElement>()
         .expect("played-card should be an HtmlElement")
-        .set_attribute("class","card horta-wrong-card")
+        .set_attribute("class","horta-wrong-card")
         .expect("should be able to set class of next card");
 
     document
