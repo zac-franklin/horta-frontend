@@ -76,10 +76,14 @@ impl Horta {
                     self.close_ws();
 
                     //Would be nice to combine these.
-                    let next_computer_idx =  self.next_idx(Player::Computer);
-                    let nex_computer_card = self.next_card(Player::Computer);
+                    let next_computer_card = self.next_card(Player::Computer);
+                    let next_computer_idx = if let Some(card) = &next_computer_card {
+                        self.card_idx(&card, Player::Computer)
+                    } else {
+                        None
+                    };
 
-                    lost_screen(document, &card.player, (next_computer_idx,nex_computer_card));
+                    lost_screen(document, &card.player, (next_computer_idx,next_computer_card));
                 },
                 GameState::Won => {
                     self.close_ws();
@@ -107,13 +111,6 @@ impl Horta {
             .iter()
             .filter(|&x| x.player == player)
             .position(|x| x == card)
-    }
-
-    pub fn next_idx(&self, player: Player) -> Option<usize> {
-        self.game.cards
-            .iter()
-            .filter(|&x| !self.game.cards_played.contains(&x))
-            .position(|x| x.player == player)
     }
 
     pub fn send_card(&self, card: &Card) {
