@@ -74,7 +74,12 @@ impl Horta {
             match self.state {
                 GameState::Lost => {
                     self.close_ws();
-                    lost_screen(document, &card.player);
+
+                    //Would be nice to combine these.
+                    let next_computer_idx =  self.next_idx(Player::Computer);
+                    let nex_computer_card = self.next_card(Player::Computer);
+
+                    lost_screen(document, &card.player, (next_computer_idx,nex_computer_card));
                 },
                 GameState::Won => {
                     self.close_ws();
@@ -97,11 +102,18 @@ impl Horta {
             .map(|x| x.clone())
     }
 
-    pub fn next_card_idx(&self, card: &Card, player: Player) -> Option<usize> {
+    pub fn card_idx(&self, card: &Card, player: Player) -> Option<usize> {
         self.game.cards
             .iter()
             .filter(|&x| x.player == player)
             .position(|x| x == card)
+    }
+
+    pub fn next_idx(&self, player: Player) -> Option<usize> {
+        self.game.cards
+            .iter()
+            .filter(|&x| !self.game.cards_played.contains(&x))
+            .position(|x| x.player == player)
     }
 
     pub fn send_card(&self, card: &Card) {
@@ -214,7 +226,7 @@ fn setup_screen(document: &Document) {
     } 
 }
 
-fn lost_screen(document: &Document, player: &Player) {
+fn lost_screen(document: &Document, player: &Player, next_computer: (Option<usize>,Option<Card>) ) {
     document
         .get_element_by_id("err")
         .expect("should have err on the page")
@@ -238,9 +250,33 @@ fn lost_screen(document: &Document, player: &Player) {
             "The Computer played a higher card than one you have. Welp, Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!"
         },
         Player::Person => {
+            if let Some(idx) = next_computer.0 {
+                if let Some(card) = next_computer.1 {
+                    let computer_hand = document
+                        .get_element_by_id("computer-hand")
+                        .expect("should have hand on the page")
+                        .dyn_ref::<HtmlElement>()
+                        .expect("hand should be an HtmlElement")
+                        .children();
+        
+                    let card_played_element = computer_hand
+                        .get_with_index(idx as u32)
+                        .expect("should be able to get card of hand wiht index");
+        
+                    card_played_element
+                        .set_inner_html(&card.number.to_string());
+        
+                    card_played_element
+                        .dyn_ref::<HtmlElement>()
+                        .expect("computer-card should be an HtmlElement")
+                        .set_attribute("class","card")
+                        .expect("should be able to set class of next card");
+                }
+            }
             "You played a higher card than one the computer has. Welp, Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!"
         },
     };
+    
 
     document
         .get_element_by_id("lost-blurb")
@@ -371,7 +407,7 @@ fn setup_play_card(document: &Document ) {
                 let card = horta.next_card(Player::Person);
 
                 if let Some(card) = card {
-                    let next_idx = horta.next_card_idx(&card, Player::Person);
+                    let next_idx = horta.card_idx(&card, Player::Person);
                     if let Some(idx) = next_idx {
                         play_card_actions(&document, (idx, &card), "person-hand");
 
@@ -463,7 +499,7 @@ fn parse_message(document: &Document, ws_message: MessageEvent) {
         if let Ok(card) = bincode::deserialize::<Card>(array_u8){
             let mut horta_lock = HORTA.lock().unwrap();
             if let Some(horta) = &mut *horta_lock {
-                let next_idx = horta.next_card_idx(&card, Player::Computer);
+                let next_idx = horta.card_idx(&card, Player::Computer);
                 if let Some(idx) = next_idx {
                     play_card_actions(&document, (idx, &card), "computer-hand");
 
