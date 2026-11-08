@@ -312,8 +312,8 @@ fn lost_screen(document: &Document, player: &Player, next_computer: (Option<usiz
         .dyn_ref::<HtmlElement>()
         .expect("lost should be an HtmlElement")
         .style()
-        .set_property("display", "flex")
-        .expect("should be able to set lost display to flex");
+        .set_property("display", "block")
+        .expect("should be able to set lost display to block");
 }
 
 fn err_screen(document: &Document) {
@@ -350,8 +350,8 @@ fn err_screen(document: &Document) {
         .dyn_ref::<HtmlElement>()
         .expect("err should be an HtmlElement")
         .style()
-        .set_property("display", "flex")
-        .expect("should be able to set err display to flex");
+        .set_property("display", "block")
+        .expect("should be able to set err display to block");
 }
 
 fn victory_screen(document: &Document) {
@@ -388,8 +388,8 @@ fn victory_screen(document: &Document) {
         .dyn_ref::<HtmlElement>()
         .expect("won should be an HtmlElement")
         .style()
-        .set_property("display", "flex")
-        .expect("should be able to set won display to flex");
+        .set_property("display", "block")
+        .expect("should be able to set won display to block");
 }
 
 fn setup_play_card(document: &Document ) {

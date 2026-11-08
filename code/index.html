@@ -8,15 +8,20 @@
 		<link href="/css/comic.css" rel="stylesheet">
 	    <link href="/style.css" rel="stylesheet">
 		<link href="static/style.css" rel="stylesheet">
+		<link rel="icon" href="/favicon.ico" sizes="32x32">
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+		<link rel="manifest" href="/site.webmanifest">
 	</head>
 	<body class="noselect" style="padding:7px;">
-        <div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
-	        <div class="comic" text="Horta">
-				Horta
+        <div style="margin-left: auto; margin-right: auto; margin-top:10px;margin-bottom:10px;">
+			<div class="comic-container blogs" style="float:left;margin-top: 10px;">
+				<div class="comic" text="Horta">
+					Horta
+				</div>
 			</div>
 		</div>
 
-		<div id="app" class="center">
+		<div id="app" style="margin-top:5px;margin-left:15px;clear:both;">
 			<div id="intro">
 				<p style="margin-top:7px;">
 					<b>Goal of the game:</b> Work with the Computer to organize the cards dealt in ascending order.
@@ -88,43 +93,53 @@
 				</div>
 			</div>
 
-			<div id="lost" class="result" style="display:none">
-				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
-					<div class="comic" text="Shucks!">
-						Shucks!
+			<div id="lost" style="display:none">
+				<div style="margin-left: auto; margin-right: auto; margin-top:10px;margin-bottom:10px;">
+					<div class="comic-container blogs" style="float:left;margin-top: 10px;">
+						<div class="comic" text="Shucks!">
+							Shucks!
+						</div>
 					</div>
 				</div>
 
-				<p id="lost-blurb" style="margin-top:10px;margin-bottom:10px;">
+				<p id="lost-blurb" style="margin-top:10px;margin-bottom:10px;margin-left:15px;clear:both;">
 					Here is a blurred picure of my dog, Patrick. Bummer you can't see it clearly. It's very cute!
 				</p>
-				<img class="blur" style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
-				<div id="retry-card-container" class="start-game-container" style="display:flex;margin-top: 20px;">
-					<button type="button" id="retry-game" class="horta-button" onclick="reload_page()">RETRY</button>
+				<div class="result">
+					<img class="blur" style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+					<div id="retry-card-container" class="start-game-container" style="display:flex;margin-top: 20px;">
+						<button type="button" id="retry-game" class="horta-button" onclick="reload_page()">RETRY</button>
+					</div>
 				</div>
 			</div>
 
-			<div id="won" class="result" style="display:none;">
-				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
-					<div class="comic" text="Nice!">
-						Nice!
+			<div id="won" style="display:none;">
+				<div style="margin-left: auto; margin-right: auto; margin-top:10px;margin-bottom:10px;">
+					<div class="comic-container blogs" style="float:left;margin-top: 10px;">
+						<div class="comic" text="Nice!">
+							Nice!
+						</div>
 					</div>
 				</div>
 
-				<p style="margin-top:10px;">
+				<p style="margin-top:10px;margin-left:15px;clear:both;">
 					Here is a picture of my dog, Patrick, as a reward. Stay fly!
 				</p>
-				<img style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+				<div class="result">
+					<img style="margin-top:10px;max-width:300px;" src="static/images/patrick_snow.jpg" alt="Patrick the doggo" />
+				</div>
 			</div>
 
-			<div id="err" class="result" style="display:none;">
-				<div class="comic-container blogs" style="margin-top:10px;margin-bottom:10px;">
-					<div class="comic" text="Ooop!">
-						Ooop! 
+			<div id="err" style="display:none;">
+				<div style="margin-left: auto; margin-right: auto; margin-top:10px;margin-bottom:10px;">
+					<div class="comic-container blogs" style="float:left;margin-top: 10px;">
+						<div class="comic" text="Ooop!">
+							Ooop! 
+						</div>
 					</div>
 				</div>
 
-				<p style="margin-top:10px;">
+				<p style="margin-top:10px;margin-left:15px;clear:both;">
 					Error communicating with silicon being. Try again later.
 				</p>
 			</div>
